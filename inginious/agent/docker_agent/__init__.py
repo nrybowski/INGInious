@@ -64,7 +64,8 @@ class DockerRunningStudentContainer:
 
 
 class DockerAgent(Agent):
-    def __init__(self, context, backend_addr, friendly_name, concurrency, tasks_fs: FileSystemProvider, address_host=None, external_ports=None, tmp_dir="./agent_tmp", runtimes=None):
+    def __init__(self, context, backend_addr, friendly_name, concurrency, tasks_fs: FileSystemProvider,
+                 address_host=None, external_ports=None, tmp_dir="./agent_tmp", runtimes=None):
         """
         :param context: ZeroMQ context for this process
         :param backend_addr: address of the backend (for example, "tcp://127.0.0.1:2222")
@@ -129,7 +130,8 @@ class DockerAgent(Agent):
 
         if self._address_host is None and len(self._containers) != 0:
             self._logger.info("Guessing external host IP")
-            available_bare_container_images = [image for envtype_containers in self._containers.values() for image in envtype_containers.values()]
+            available_bare_container_images = [image for envtype_containers in self._containers.values() for image in
+                                               envtype_containers.values()]
             if len(available_bare_container_images) != 0:
                 self._address_host = await self._docker.get_host_ip(available_bare_container_images[0]["id"])
             else:
@@ -217,7 +219,8 @@ class DockerAgent(Agent):
         since = None  # last time we saw something. Useful if a restart happens...
         while not shutdown:
             try:
-                source = AsyncIteratorWrapper(self._docker.sync.event_stream(filters={"event": ["die", "oom"]}, since=since))
+                source = AsyncIteratorWrapper(
+                    self._docker.sync.event_stream(filters={"event": ["die", "oom"]}, since=since))
                 self._logger.info("Docker event stream started")
                 async for i in source:
                     since = i.get('time', since)  # update time if available.
@@ -250,12 +253,12 @@ class DockerAgent(Agent):
                                 pass
                     else:
                         raise TypeError(str(i))
-                raise Exception("Docker stopped feeding the event stream. This should not happen. Restarting the event stream...")
+                raise Exception(
+                    "Docker stopped feeding the event stream. This should not happen. Restarting the event stream...")
             except asyncio.CancelledError:
                 shutdown = True
             except:
                 self._logger.exception("Exception in _watch_docker_events")
-
 
     def __new_job_sync(self, message: BackendNewJob, future_results):
         """ Synchronous part of _new_job. Creates needed directories, copy files, and starts the container. """
@@ -281,8 +284,9 @@ class DockerAgent(Agent):
 
         if not course_fs.exists() or not task_fs.exists():
             self._logger.warning("Task %s/%s unavailable on this agent", course_id, task_id)
-            raise CannotCreateJobException('Task unavailable on agent. Please retry later, the agents should synchronize soon. '
-                             'If the error persists, please contact your course administrator.')
+            raise CannotCreateJobException(
+                'Task unavailable on agent. Please retry later, the agents should synchronize soon. '
+                'If the error persists, please contact your course administrator.')
 
         # Check for realistic memory limit value
         if mem_limit < 20:
@@ -290,7 +294,8 @@ class DockerAgent(Agent):
         elif mem_limit > self._max_memory_per_slot:
             self._logger.warning("Task %s/%s ask for too much memory (%dMB)! Available: %dMB", course_id, task_id,
                                  mem_limit, self._max_memory_per_slot)
-            raise CannotCreateJobException('Not enough memory on agent (available: %dMB). Please contact your course administrator.' % self._max_memory_per_slot)
+            raise CannotCreateJobException(
+                'Not enough memory on agent (available: %dMB). Please contact your course administrator.' % self._max_memory_per_slot)
 
         if environment_type not in self._containers or environment_name not in self._containers[environment_type]:
             self._logger.warning("Task %s/%s ask for an unknown environment %s/%s", course_id, task_id,
@@ -300,13 +305,14 @@ class DockerAgent(Agent):
         environment = self._containers[environment_type][environment_name]["id"]
         runtime = self._containers[environment_type][environment_name]["runtime"]
 
-        ports_needed = list(self._containers[environment_type][environment_name]["ports"])  # copy, as we modify it later!
+        ports_needed = list(
+            self._containers[environment_type][environment_name]["ports"])  # copy, as we modify it later!
 
         if debug == "ssh" and 22 not in ports_needed:
             ports_needed.append(22)
 
         ports = {}
-        if len(ports_needed) > 0: # if ssh_debug, put time limits to 30 min.
+        if len(ports_needed) > 0:  # if ssh_debug, put time limits to 30 min.
             time_limit = 30 * 60
             hard_time_limit = 30 * 60
         for p in ports_needed:
@@ -456,20 +462,21 @@ class DockerAgent(Agent):
             try:
                 socket_path = path_join(parent_info.sockets_path, str(socket_id) + ".sock")
                 container_id = await self._docker.create_container_student(runtime, environment,
-                                                                           memory_limit, parent_info.student_path, socket_path,
+                                                                           memory_limit, parent_info.student_path,
+                                                                           socket_path,
                                                                            parent_info.systemfiles_path,
                                                                            parent_info.course_common_student_path,
                                                                            parent_info.container_id if share_network else None,
                                                                            ports)
             except Exception as e:
                 self._logger.exception("Cannot create student container!")
-                await self._write_to_container_stdin(write_stream, {"type": "run_student_retval", "retval": 254, "socket_id": socket_id})
+                await self._write_to_container_stdin(write_stream, {"type": "run_student_retval", "retval": 254,
+                                                                    "socket_id": socket_id})
 
                 if isinstance(e, asyncio.CancelledError):
                     raise
 
                 return
-
 
             info = DockerRunningStudentContainer(
                 container_id=container_id,
@@ -485,13 +492,15 @@ class DockerAgent(Agent):
             self._student_containers_running[container_id] = info
 
             # send to the container that the sibling has started
-            await self._write_to_container_stdin(write_stream, {"type": "run_student_started", "socket_id": socket_id, "container_id": container_id})
+            await self._write_to_container_stdin(write_stream, {"type": "run_student_started", "socket_id": socket_id,
+                                                                "container_id": container_id})
 
             try:
                 await self._docker.start_container(container_id)
             except Exception as e:
                 self._logger.exception("Cannot start student container!")
-                await self._write_to_container_stdin(write_stream, {"type": "run_student_retval", "retval": 254, "socket_id": socket_id})
+                await self._write_to_container_stdin(write_stream, {"type": "run_student_retval", "retval": 254,
+                                                                    "socket_id": socket_id})
 
                 if isinstance(e, asyncio.CancelledError):
                     raise
@@ -529,7 +538,8 @@ class DockerAgent(Agent):
             return None
 
         # Send hello msg
-        hello_msg = {"type": "start", "input": info.inputdata, "debug": info.debug, "envtypes": {x.envtype: x.shared_kernel for x in self._runtimes.values()}}
+        hello_msg = {"type": "start", "input": info.inputdata, "debug": info.debug,
+                     "envtypes": {x.envtype: x.shared_kernel for x in self._runtimes.values()}}
         if info.run_cmd is not None:
             hello_msg["run_cmd"] = info.run_cmd
         hello_msg["run_as_root"] = self._runtimes[info.environment_type].run_as_root
@@ -542,7 +552,8 @@ class DockerAgent(Agent):
         try:
             while not read_stream.at_eof():
                 msg_header = await read_stream.readexactly(8)
-                outtype, length = struct.unpack_from('>BxxxL', msg_header)  # format imposed by docker in the attach endpoint
+                outtype, length = struct.unpack_from('>BxxxL',
+                                                     msg_header)  # format imposed by docker in the attach endpoint
                 if length != 0:
                     content = await read_stream.readexactly(length)
                     if outtype == 1:  # stdout
@@ -552,7 +563,7 @@ class DockerAgent(Agent):
                         self._logger.debug("Received stderr from containers:\n%s", content)
 
                     # 4 first bytes are the length of the message. If we have a complete message...
-                    while len(buffer) > 4 and len(buffer) >= 4+struct.unpack('!I',buffer[0:4])[0]:
+                    while len(buffer) > 4 and len(buffer) >= 4 + struct.unpack('!I', buffer[0:4])[0]:
                         msg_encoded = buffer[4:4 + struct.unpack('!I', buffer[0:4])[0]]  # ... get it
                         buffer = buffer[4 + struct.unpack('!I', buffer[0:4])[0]:]  # ... withdraw it from the buffer
                         try:
@@ -563,38 +574,48 @@ class DockerAgent(Agent):
                                 environment = msg["environment"] or info.environment_name
                                 memory_limit = min(msg["memory_limit"] or info.mem_limit, info.mem_limit)
                                 time_limit = min(msg["time_limit"] or info.time_limit, info.time_limit)
-                                hard_time_limit = min(msg["hard_time_limit"] or info.hard_time_limit, info.hard_time_limit)
+                                hard_time_limit = min(msg["hard_time_limit"] or info.hard_time_limit,
+                                                      info.hard_time_limit)
                                 share_network = msg["share_network"]
                                 socket_id = msg["socket_id"]
                                 ssh = msg["ssh"]
                                 assert "/" not in socket_id  # ensure task creator do not try to break the agent :-(
                                 if ssh and not info.enable_network:
-                                    self._logger.error("Exception: ssh for student requires internet access in the task %s",info.job_id)
-                                    self._create_safe_task(self.handle_job_closing(info.container_id, -1, manual_feedback="ssh for student requires internet access in the task configuration !"))
+                                    self._logger.error(
+                                        "Exception: ssh for student requires internet access in the task %s",
+                                        info.job_id)
+                                    self._create_safe_task(self.handle_job_closing(info.container_id, -1,
+                                                                                   manual_feedback="ssh for student requires internet access in the task configuration !"))
                                 else:
-                                    self._create_safe_task(self.create_student_container(info, socket_id, environment, memory_limit,
-                                                                                     time_limit, hard_time_limit, share_network,
-                                                                                     write_stream, ssh))
+                                    self._create_safe_task(
+                                        self.create_student_container(info, socket_id, environment, memory_limit,
+                                                                      time_limit, hard_time_limit, share_network,
+                                                                      write_stream, ssh))
                             elif msg["type"] == "ssh_debug":
                                 # send the data to the frontend (and client) to reach grading_container
                                 self._logger.info("%s %s", info.container_id, str(msg))
-                                await self.send_ssh_job_info(info.job_id, self._address_host, info.ports[22], msg["ssh_user"], msg["ssh_key"])
+                                await self.send_ssh_job_info(info.job_id, self._address_host, info.ports[22],
+                                                             msg["ssh_user"], msg["ssh_key"])
 
                             elif msg["type"] == "ssh_student":
                                 # send the data to the frontend (and client) to reach student_container
                                 info_student = None
-                                if len(self._student_containers_running) > 0 and msg["container_id"] in info.student_containers:
+                                if len(self._student_containers_running) > 0 and msg[
+                                    "container_id"] in info.student_containers:
                                     info_student = self._student_containers_running[msg["container_id"]]
                                 else:
                                     self._logger.exception("Exception: no linked student_container running.")
-                                    self._create_safe_task(self.handle_job_closing(info.container_id, -1, manual_feedback="Trying to connect with ssh to a non-children student container !"))
+                                    self._create_safe_task(self.handle_job_closing(info.container_id, -1,
+                                                                                   manual_feedback="Trying to connect with ssh to a non-children student container !"))
                                 self._logger.info("%s %s", info_student.container_id, str(msg))
-                                await self.send_ssh_job_info(info.job_id, self._address_host, info_student.ports[22], msg["ssh_user"], msg["ssh_key"])
+                                await self.send_ssh_job_info(info.job_id, self._address_host, info_student.ports[22],
+                                                             msg["ssh_user"], msg["ssh_key"])
                             elif msg["type"] == "result":
                                 # last message containing the results of the container
                                 result = msg["result"]
                         except:
-                            self._logger.exception("Received incorrect message from container %s (job id %s)", info.container_id, info.job_id)
+                            self._logger.exception("Received incorrect message from container %s (job id %s)",
+                                                   info.container_id, info.job_id)
         except asyncio.IncompleteReadError:
             self._logger.debug("Container output ended with an IncompleteReadError; It was probably killed.")
         except asyncio.CancelledError:
@@ -625,7 +646,8 @@ class DockerAgent(Agent):
             except asyncio.CancelledError:
                 raise
             except:
-                self._logger.warning("Student container %s that has finished(p1) was not launched by this agent", str(container_id), exc_info=True)
+                self._logger.warning("Student container %s that has finished(p1) was not launched by this agent",
+                                     str(container_id), exc_info=True)
                 return
 
             # Delete remaining student containers
@@ -646,7 +668,8 @@ class DockerAgent(Agent):
                 retval = 252
 
             try:
-                await self._write_to_container_stdin(info.write_stream, {"type": "run_student_retval", "retval": retval, "socket_id": info.socket_id})
+                await self._write_to_container_stdin(info.write_stream, {"type": "run_student_retval", "retval": retval,
+                                                                         "socket_id": info.socket_id})
             except asyncio.CancelledError:
                 raise
             except:
@@ -668,6 +691,7 @@ class DockerAgent(Agent):
         """
         Handle a closing student container. Do some cleaning, verify memory limits, timeouts, ... and returns data to the backend
         """
+
         try:
             self._logger.debug("Closing %s", container_id)
             try:
@@ -676,7 +700,8 @@ class DockerAgent(Agent):
             except asyncio.CancelledError:
                 raise
             except:
-                self._logger.warning("Container %s that has finished(p1) was not launched by this agent", str(container_id), exc_info=True)
+                self._logger.warning("Container %s that has finished(p1) was not launched by this agent",
+                                     str(container_id), exc_info=True)
                 return
             # Close sub containers
             for student_container_id_loop in info.student_containers:
@@ -689,6 +714,7 @@ class DockerAgent(Agent):
                         raise
                     except:
                         pass  # ignore
+
                 self._create_safe_task(close_and_delete(student_container_id_loop))
 
             # Allow other container to reuse the external ports this container has finished to use
@@ -731,7 +757,7 @@ class DockerAgent(Agent):
                     for key, item in return_value.items():
                         if not isinstance(item, accepted_types[key]):
                             raise Exception("Feedback file is badly formatted.")
-                        elif accepted_types[key] == dict and key != "custom": #custom can contain anything:
+                        elif accepted_types[key] == dict and key != "custom":  # custom can contain anything:
                             for sub_key, sub_item in item.items():
                                 if not keys_fct[key](sub_key) or isinstance(sub_item, dict):
                                     raise Exception("Feedback file is badly formatted.")
@@ -779,10 +805,12 @@ class DockerAgent(Agent):
                 pass  # todo: run a docker container to force removal
 
             # Return!
-            if retval == -1 and manual_feedback is not None:
-                await self.send_job_result(info.job_id, result, manual_feedback, grade, problems, tests, custom, state,archive, stdout, stderr)
+            if retval == -1 and manual_feedback is not None and isinstance(manual_feedback, str):
+                await self.send_job_result(info.job_id, result, manual_feedback, grade, problems, tests, custom, state,
+                                           archive, stdout, stderr)
             else:
-                await self.send_job_result(info.job_id, result, error_msg, grade, problems, tests, custom, state, archive, stdout, stderr)
+                await self.send_job_result(info.job_id, result, error_msg, grade, problems, tests, custom, state,
+                                           archive, stdout, stderr)
 
             # Do not forget to remove data from internal state
             del self._container_for_job[info.job_id]
@@ -836,5 +864,7 @@ class DockerAgent(Agent):
                         self._logger.info("Using %s as runtime with parameters %s", runtime, str(v))
                         retval[v.envtype] = v
                     else:
-                        self._logger.warning("%s was detected as a runtime; it would duplicate another one, so we ignore it. %s", runtime, str(v))
+                        self._logger.warning(
+                            "%s was detected as a runtime; it would duplicate another one, so we ignore it. %s",
+                            runtime, str(v))
         return retval
