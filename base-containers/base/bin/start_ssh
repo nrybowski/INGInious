@@ -1,0 +1,19 @@
+#!/bin/python3
+# -*- coding: utf-8 -*-
+#
+# This file is part of INGInious. See the LICENSE and the COPYRIGHTS files for
+# more information about the licensing of this file.
+
+if not os.path.exists("/tmp/__ssh_authorized"):
+    print("Starting an SSH connection is not authorized here")
+    exit(1)
+
+with open('/tmp/__start_ssh', 'w') as f:
+    f.write("go")
+
+while True:
+    if os.path.exists("/tmp/__ssh_retval"):
+        break
+    time.sleep(0.2)
+
+exit(int(open("/tmp/__ssh_retval").read()))

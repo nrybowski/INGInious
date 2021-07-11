@@ -8,6 +8,8 @@ import shlex
 import socket
 import subprocess
 import threading
+import time
+
 import msgpack
 import array
 import struct
@@ -23,6 +25,24 @@ def handle_signals(subprocess, socket):
             return
         print("received %s" % signal.decode("utf8"))
         subprocess.send_signal(int(signal.decode('utf8')))
+
+
+def wait_for_ssh():
+    while True:
+        if os.path.exists("/tmp/__start_ssh"):
+            break
+        time.sleep(0.2)
+    # Start ssh server
+    ssh_user, password = start_ssh_server(user)
+    # Send ssh information
+    message = msgpack.dumps({"type": "ssh_student", "ssh_user": ssh_user, "password": password})  # constant size
+    message_size = struct.pack('!I', len(message))
+    client.send(message_size)
+    client.send(message)
+    # Wait for user to connect and leave
+    retval = ssh_wait(ssh_user)
+    with open('/tmp/__ssh_retval', 'w') as f:
+        f.write(str(retval))
 
 
 def recv_fds(sock, msglen, maxfds):
@@ -100,27 +120,22 @@ if start_cmd["command"] is None or start_cmd["command"] == "":  # Avoid to run a
 
 # Run the command
 p = subprocess.Popen(shlex.split(start_cmd["command"]), preexec_fn=set_limits, stdin=fds[0], stdout=fds[1], stderr=fds[2])
+
 # Handle the signals
 print("Signal thread")
 thread = threading.Thread(target=lambda: handle_signals(p, client), daemon=True)
 thread.start()
+
+# Handle SSH start, if needed
+if start_cmd["ssh"]:
+    with open('/tmp/__ssh_authorized', 'w') as f:
+        f.write("ok")
+    thread_ssh = threading.Thread(target=wait_for_ssh, daemon=True)
+    thread_ssh.start()
+
 # Wait until the subprocess exit
 print("Waiting for process to end")
 retval = p.wait()
 
-if start_cmd["ssh"]:
-    # Start ssh server
-    ssh_user, password = start_ssh_server(user)
-    # Send ssh information
-    message = msgpack.dumps({"type": "ssh_student", "ssh_user": ssh_user, "password": password})  # constant size
-    message_size = struct.pack('!I', len(message))
-    client.send(message_size)
-    client.send(message)
-    # Wait for user to connect and leave
-    retval = ssh_wait(ssh_user)
-
-    print("Exiting")
-    exit(retval)
-else:
-    print("Exiting")
-    exit(retval)
+print("Exiting")
+exit(retval)
