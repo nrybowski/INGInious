@@ -66,7 +66,10 @@
                                         <label class="control-label" for="registered_students"> {{ _("Choose student :") }}</label>
                                     </div>
                                     <div class="col-md-9">
-                                        <select id="registered_students" name="registered_students" class="form-control">
+                                        <div class="col-sm-10">
+                                            {{ user_selection_box(course_id=course.get_id(), current_users=other_students, name="registered_students", id="registered_students", placeholder=_("Enter something here to search for a user")) | safe }}
+                                        </div>
+                                        <!--<select id="registered_students" name="registered_students" class="form-control">
                                             {% for student in other_students %}
                                                 {% if users_info[student] is not none %}
                                                     <option value="{{student}}">{{ users_info[student].realname }} ({{ student }})</option>
@@ -74,7 +77,7 @@
                                                     <option value="{{student}}">{{ student }}</option>
                                                 {% endif %}
                                             {% endfor %}
-                                        </select>
+                                        </select>-->
                                     </div>
                                 </div>
                             </div>
