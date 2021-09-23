@@ -73,15 +73,15 @@ function audiences_tutor_remove(username, id) {
 
 function audiences_student_add() {
     if($("#tab_registered_student").hasClass("active")) {
-        let input_data = ($("#registered_students").val()).split(',');
-        for(let student_id of input_data){
+        var input_data = ($("#registered_students").val()).split(',');
+        for(var student_id in input_data){
             var new_li = jQuery('<li/>', {
                 'class':"list-group-item group-entry",
-                'data-username':student_id
+                'data-username':input_data[student_id]
             });
             var new_user = jQuery('<span/>', {
                 id: new_li.data("username"),
-                text: ' ' + student_id
+                text: ' ' + input_data[student_id]
             }).appendTo(new_li);
 
             jQuery('<i/>', {
