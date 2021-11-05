@@ -33,3 +33,5 @@ jobs:
           sudo systemctl start docker
       - name: Install INGInious
         run: pip3 install .
+      - name: Launch tests
+        run: nosetests -v --with-coverage --cover-package=inginious --cover-branches --cover-html
