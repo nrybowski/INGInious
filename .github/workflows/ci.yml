@@ -31,3 +31,5 @@ jobs:
         run: |
           sudo systemctl start mongod
           sudo systemctl start docker
+      - name: Install INGInious
+        run: pip3 install .
