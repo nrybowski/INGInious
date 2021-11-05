@@ -29,5 +29,5 @@ jobs:
         run: sudo apt-get install -y libtidy5deb1 libzmq3-dev
       - name: Start services
         run: |
-          sudo systemctl start mongodb
+          sudo systemctl start mongod
           sudo systemctl start docker
