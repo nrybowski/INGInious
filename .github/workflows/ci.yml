@@ -26,4 +26,8 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Install dependencies
-        run: apt-get install -y python3 python3-pip docker.io mongodb libtidy5deb1 libzmq3-dev
+        run: sudo apt-get install -y python3 python3-pip docker.io mongodb libtidy5deb1 libzmq3-dev
+      - name: Start services
+        run: |
+          sudo systemctl start mongodb
+          sudo systemctl start docker
