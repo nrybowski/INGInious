@@ -219,10 +219,13 @@ if __name__ == "__main__":
     # Initialize course/task factory
     task_directory = config["tasks_directory"]
 
+    import importlib
+    m = importlib.import_module('inginious-problems-network-trace')
+
     # TODO: get that somewhere rather than hardcoding that in the test script
     task_problem_types = {"code": CodeProblem, "code_single_line": CodeSingleLineProblem,
                           "file": FileProblem, "multiple_choice": MultipleChoiceProblem,
-                          "match": MatchProblem}
+                          "match": MatchProblem, "network-trace": m.NetworkTraceProblem}
     task_dispensers = {TableOfContents.get_id(): TableOfContents, CombinatoryTest.get_id(): CombinatoryTest}
 
     # Intialize the LocalFileSystemProvider of the instance
