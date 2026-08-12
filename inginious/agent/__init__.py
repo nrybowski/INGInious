@@ -9,6 +9,7 @@ import os
 import time
 from abc import abstractproperty, ABCMeta, abstractmethod
 from typing import Dict, Any, Optional
+from enum import StrEnum, auto
 
 import zmq
 
@@ -21,6 +22,9 @@ from inginious.common.filesystems import get_fs_provider
 Various utils to implements new kind of agents easily.
 """
 
+class AgentType(StrEnum):
+    OCI = auto()
+    MCQ = auto()
 
 class CannotCreateJobException(Exception):
     """
@@ -63,6 +67,7 @@ class Agent(object, metaclass=ABCMeta):
 
         # These fields should not be read/modified/overridden in subclasses
         self.__concurrency = concurrency
+        self.__type = AgentType
 
         self.__backend_addr = backend_addr
         self.__context = context

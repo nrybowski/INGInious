@@ -6,7 +6,7 @@ import json
 import logging
 import gettext
 
-from inginious.agent import Agent, CannotCreateJobException
+from inginious.agent import Agent, AgentType, CannotCreateJobException
 from inginious import get_root_path
 from inginious.common.messages import BackendNewJob, BackendKillJob
 from inginious.common.tasks_problems import get_problem_types
@@ -31,6 +31,7 @@ class MCQAgent(Agent):
         self._translations.update({
             lang: gettext.translation('messages', get_root_path() + '/agent/mcq_agent/i18n', [lang]) for lang in available_translations
         })
+        self._type = AgentType.MCQ
 
     @property
     def environments(self):
