@@ -17,10 +17,6 @@ from inginious_container_api.utils import set_limits_user, setup_logger,\
 # Setup the logger
 logger = setup_logger()
 
-# Check the runtimes
-runtime = sys.argv[1]
-parent_runtime = sys.argv[2]
-
 # Get the command to be run
 socket_unix, fds, start_cmd = receive_initial_command()
 
