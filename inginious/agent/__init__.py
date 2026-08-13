@@ -9,7 +9,6 @@ import os
 import time
 from abc import abstractproperty, ABCMeta, abstractmethod
 from typing import Dict, Any, Optional
-from enum import StrEnum, auto
 
 import zmq
 
@@ -17,14 +16,12 @@ from inginious.common.messages import AgentHello, BackendJobId, SPResult, AgentJ
     AgentJobStarted, AgentJobSSHDebug, Ping, Pong, ZMQUtils
 
 from inginious.common.filesystems import get_fs_provider
+from inginious.common.agents import AgentType
 
 """
 Various utils to implements new kind of agents easily.
 """
 
-class AgentType(StrEnum):
-    OCI = auto()
-    MCQ = auto()
 
 class CannotCreateJobException(Exception):
     """
@@ -67,7 +64,7 @@ class Agent(object, metaclass=ABCMeta):
 
         # These fields should not be read/modified/overridden in subclasses
         self.__concurrency = concurrency
-        self.__type = AgentType
+        self.__type: AgentType = None
 
         self.__backend_addr = backend_addr
         self.__context = context
@@ -118,7 +115,7 @@ class Agent(object, metaclass=ABCMeta):
 
         # Tell the backend we are up and have `concurrency` threads available
         self._logger.info("Saying hello to the backend")
-        await ZMQUtils.send(self.__backend_socket, AgentHello(self.__friendly_name, self.__concurrency, self.environments))
+        await ZMQUtils.send(self.__backend_socket, AgentHello(self.__friendly_name, self.__concurrency, self.environments, self._type))
         self.__backend_last_seen_time = time.time()
 
         run_listen = self._loop.create_task(self.__run_listen())
@@ -178,7 +175,7 @@ class Agent(object, metaclass=ABCMeta):
             return
         
         try:
-            if message.environment_type not in self.environments or message.environment not in self.environments[message.environment_type]:
+            if message.environment_type != self._type or message.environment not in self.environments:
                 self._logger.warning("Task %s/%s ask for an unknown environment %s/%s", message.course_id, message.task_id,
                                      message.environment_type, message.environment)
                 raise CannotCreateJobException('This environment is not available in this agent. Please contact your course administrator.')

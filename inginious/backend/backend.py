@@ -17,6 +17,7 @@ from inginious.common.asyncio_utils import create_safe_task
 from inginious.common.messages import BackendNewJob, AgentJobStarted, AgentJobDone, AgentJobSSHDebug, \
     BackendJobDone, BackendJobStarted, BackendJobSSHDebug, ClientNewJob, ClientKillJob, BackendKillJob, AgentHello, \
     ClientHello, BackendUpdateEnvironments, Unknown, Ping, Pong, ClientGetQueue, BackendGetQueue, ZMQUtils
+from inginious.common.agents import AgentType, GradingEnvironment
 
 # This will be pushed inside a TopicPriorityQueue that uses natural ordering (smallest element has the highest priority)
 # priority and time_received must thus be the two first element of the tuples.
@@ -51,9 +52,9 @@ class Backend(object):
         self._poller.register(self._agent_socket, zmq.POLLIN)
         self._poller.register(self._client_socket, zmq.POLLIN)
 
-        # dict of available environments. Keys are first the type of environement (docker, mcq, kata...) then the
-        # name of the environment.
-        self._environments: Dict[str, Dict[str, EnvironmentInfo]] = {}
+        # Available grading environments.
+        # Keys are first the AgentType (oci, mcq) then the name of the environment.
+        self._environments: Dict[AgentType, Dict[str, EnvironmentInfo]] = {}
         self._registered_clients = set()  # addr of registered clients
 
         self._registered_agents: Dict[bytes, AgentInfo] = {}  # all registered agents
@@ -231,6 +232,7 @@ class Backend(object):
         """
         Handle an AgentAvailable message. Add agent_addr to the list of available agents
         """
+        message = AgentHello(**message)
         self._logger.info("Agent %s (%s) said hello", agent_addr, message.friendly_name)
 
         if agent_addr in self._registered_agents:
@@ -238,48 +240,43 @@ class Backend(object):
             await self._delete_agent(agent_addr)
 
         self._registered_agents[agent_addr] = AgentInfo(message.friendly_name,
-                                                        [(etype, env) for etype, envs in
-                                                         message.available_environments.items() for env in envs])
-        self._available_agents.extend([agent_addr for _ in range(0, message.available_job_slots)])
+                                                        [(message.agent_type, env) for env in message.environments])
+        self._available_agents.extend([agent_addr for _ in range(message.available_job_slots)])
         self._ping_count[agent_addr] = 0
 
+        if message.agent_type not in self._environments:
+            self._environments[message.agent_type] = {}
+        env_dict = self._environments[message.agent_type]
+
         # update information about available environments
-        for environment_type, environments in message.available_environments.items():
-            if environment_type not in self._environments:
-                self._environments[environment_type] = {}
-            env_dict = self._environments[environment_type]
-            for name, environment_info in environments.items():
-                if name in env_dict:
-                    # check if the id is the same
-                    if env_dict[name].last_id == environment_info["id"]:
-                        # ok, just add the agent to the list of agents that have the environment
-                        self._logger.debug("Registering environment %s/%s for agent %s", environment_type, name, str(agent_addr))
-                        env_dict[name].agents.append(agent_addr)
-                    elif env_dict[name].created_last > environment_info["created"]:
-                        # environments stored have been created after the new one
-                        # add the agent, but emit a warning
-                        self._logger.warning("Environment %s has multiple version: \n"
-                                             "\t Currently registered agents have version %s (%i)\n"
-                                             "\t New agent %s has version %s (%i)",
-                                             name,
-                                             env_dict[name].last_id, env_dict[name].created_last,
-                                             str(agent_addr), environment_info["id"], environment_info["created"])
-                        env_dict[name].agents.append(agent_addr)
-                    else:
-                        # environments stored have been created before the new one
-                        # add the agent, update the infos, and emit a warning
-                        self._logger.warning("Environment %s has multiple version: \n"
-                                             "\t Currently registered agents have version %s (%i)\n"
-                                             "\t New agent %s has version %s (%i)",
-                                             name,
-                                             env_dict[name].last_id, env_dict[name].created_last,
-                                             str(agent_addr), environment_info["id"], environment_info["created"])
-                        env_dict[name] = EnvironmentInfo(environment_info["id"], environment_info["created"],
-                                                         env_dict[name].agents + [agent_addr], environment_type, environment_info["advertised"])
+        for environment, environment_info in message.environments.items():
+            environment_info = GradingEnvironment(**environment_info)
+            override: bool = False
+            if (env := env_dict.get(environment)) is None:
+                # Register new grading environment
+                self._logger.info(f"Registering environment {message.agent_type}/{environment} for agent {agent_addr}")
+                override = True
+            else:
+                # check if the id is the same
+                if env.last_id == environment_info.id:
+                    # ok, just add the agent to the list of agents that have the environment
+                    self._logger.info(f"Registering environment {message.agent_type}/{environment} for agent {agent_addr}")
                 else:
-                    # just add it
-                    self._logger.debug("Registering environment %s/%s for agent %s", environment_type, name, str(agent_addr))
-                    env_dict[name] = EnvironmentInfo(environment_info["id"], environment_info["created"], [agent_addr], environment_type, environment_info["advertised"])
+                    self._logger.warning("Environment %s has multiple version: \n"
+                                         "\t Currently registered agents have version %s (%i)\n"
+                                         "\t New agent %s has version %s (%i)",
+                                         environment,
+                                         env.last_id, env.created_last,
+                                         str(agent_addr), environment_info.id, environment_info.created)
+
+                    # If the environments stored have been created after the new one
+                    # add the agent, but emit a warning, else override the environment data.
+                    override = env.created_last <= environment_info.created
+
+            if override:
+                env_dict[environment] = EnvironmentInfo(environment_info.id, environment_info.created, [agent_addr], message.agent_type, environment_info.advertised)
+            else:
+                env.agents.append(agent_addr)
 
         # update the queue
         await self.update_queue()

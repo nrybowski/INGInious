@@ -20,6 +20,7 @@ from inginious.agent.docker_agent._docker_interface import DockerInterface
 
 from inginious.agent import Agent, AgentType, CannotCreateJobException
 from inginious.agent.docker_agent._timeout_watcher import TimeoutWatcher
+from inginious.agent.docker_agent.capabilities import DockerAgentCapabilities
 from inginious.common.asyncio_utils import AsyncIteratorWrapper, AsyncProxy
 from inginious.common.base import id_checker, id_checker_tests
 from inginious.common.messages import BackendNewJob, BackendKillJob
@@ -59,16 +60,6 @@ class DockerRunningStudentContainer:
     ssh: bool
     ports: Dict[int, int]  # internal port -> external port mapping
     assigned_external_ports: List[int]
-
-
-@dataclass(frozen=True)
-class DockerAgentCapabilities:
-    """ Indicates whether the Agent supports GPUs. """
-    gpu: bool
-    """ Indicates whether the Agent supports running student code as root. """
-    run_as_root: bool
-    """ Indicates whether the Agent supports SSH proxying to student container. """
-    ssh: bool
 
 
 class DockerAgent(Agent):
@@ -141,7 +132,7 @@ class DockerAgent(Agent):
 
         if self._address_host is None and len(self._containers) != 0:
             self._logger.info("Guessing external host IP")
-            self._address_host = await self._docker.get_host_ip(self._containers[0]["id"])
+            self._address_host = await self._docker.get_host_ip(list(self._containers.values())[0].id)
         else:
             self._logger.error("Cannot find the external IP without at least an installed container.")
 
@@ -342,9 +333,8 @@ class DockerAgent(Agent):
                 self._logger.warning(f"A job asks for an unknown environment {environment_name}")
             raise CannotCreateJobException('Unknown container. Please contact your course administrator.')
 
-        environment = self._containers[environment_name]["id"]
-
-        ports_needed = list(self._containers[environment_name]["ports"])  # copy, as we modify it later!
+        environment = self._containers[environment_name].id
+        ports_needed = list(self._containers[environment_name].ports)  # copy, as we modify it later!
 
         if debug == "ssh" and 22 not in ports_needed:
             ports_needed.append(22)
@@ -490,7 +480,7 @@ class DockerAgent(Agent):
                                                                     "socket_id": socket_id})
                 return
 
-            environment = self._containers[environment_name]["id"]
+            environment = self._containers[environment_name].id
 
             ports_needed = [22] if ssh else []
             ports = {}
@@ -514,7 +504,6 @@ class DockerAgent(Agent):
                                                                            socket_id,
                                                                            parent_info.systemfiles_path,
                                                                            parent_info.course_common_student_path,
-                                                                           parent_info.environment_type,
                                                                            self.__get_fd_limit(),
                                                                            parent_info.container_id if share_network else None,
                                                                            ports)

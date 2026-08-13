@@ -15,8 +15,8 @@ import logging
 
 from docker.types import Ulimit
 
-from inginious.agent.docker_agent import DockerAgentCapabilities
-
+from inginious.agent.docker_agent.capabilities import DockerAgentCapabilities
+from inginious.common.agents import GradingEnvironment
 
 DOCKER_AGENT_VERSION = 4
 
@@ -38,7 +38,7 @@ class DockerInterface(object):  # pragma: no cover
         """
         return self._docker.info().get("CgroupVersion")
     
-    def get_containers(self, capabilities: DockerAgentCapabilities) -> Dict[str, Dict[str, Dict[str, str]]]:
+    def get_containers(self, capabilities: DockerAgentCapabilities) -> Dict[str, GradingEnvironment]:
         """
         :param capabilities: Agent capabilities.
         :return: a dict of available containers in the form
@@ -77,7 +77,7 @@ class DockerInterface(object):  # pragma: no cover
             return run_as_root and gpu and ssh
             
         for img in self._docker.images.list(filters={"label": "org.inginious.grading.name"}):
-            if (env := img.labels.get("org.grading.name")) is None:
+            if (env := img.labels.get("org.inginious.grading.name")) is None:
                 logger.warning("Failed to load grading environement name. Ignoring.")
                 continue
             
@@ -116,8 +116,8 @@ class DockerInterface(object):  # pragma: no cover
         latest = {}
         for env, env_data in environments.items():
             for id, img_data in env_data.items():
-                if env not in latest or latest[env]["created"] < img_data["created"]:
-                    latest[env] = {"id": id, **img_data}
+                if env not in latest or latest[env].created < img_data["created"]:
+                    latest[env] = GradingEnvironment(id, **img_data)
         return latest
 
     def get_host_ip(self, image):
