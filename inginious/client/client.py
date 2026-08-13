@@ -206,6 +206,7 @@ class Client(BetterParanoidPirateClient):
 
     async def _handle_update_environments(self, message: BackendUpdateEnvironments):
         self._available_environments = message.available_environments
+        self.agents_capabilities = message.capabilities
         self._logger.info("Updated environments")
         self._logger.debug("Environments: %s", str(self._available_environments))
 

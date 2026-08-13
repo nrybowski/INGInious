@@ -16,7 +16,7 @@ from inginious.common.messages import AgentHello, BackendJobId, SPResult, AgentJ
     AgentJobStarted, AgentJobSSHDebug, Ping, Pong, ZMQUtils
 
 from inginious.common.filesystems import get_fs_provider
-from inginious.common.agents import AgentType
+from inginious.common.agents import AgentType, Capabilities
 
 """
 Various utils to implements new kind of agents easily.
@@ -61,10 +61,11 @@ class Agent(object, metaclass=ABCMeta):
         self._logger = logging.getLogger("inginious.agent")
         self._loop = asyncio.get_event_loop()
         self._fs = get_fs_provider()
+        self._type: AgentType = None
+        self._capabilities: Capabilities = None
 
         # These fields should not be read/modified/overridden in subclasses
         self.__concurrency = concurrency
-        self.__type: AgentType = None
 
         self.__backend_addr = backend_addr
         self.__context = context
@@ -115,7 +116,7 @@ class Agent(object, metaclass=ABCMeta):
 
         # Tell the backend we are up and have `concurrency` threads available
         self._logger.info("Saying hello to the backend")
-        await ZMQUtils.send(self.__backend_socket, AgentHello(self.__friendly_name, self.__concurrency, self.environments, self._type))
+        await ZMQUtils.send(self.__backend_socket, AgentHello(self.__friendly_name, self.__concurrency, self.environments, self._type, self._capabilities))
         self.__backend_last_seen_time = time.time()
 
         run_listen = self._loop.create_task(self.__run_listen())

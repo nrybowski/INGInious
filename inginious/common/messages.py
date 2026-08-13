@@ -7,7 +7,7 @@ from typing import Dict, Type, Tuple, Union, Any, List, Optional
 import msgpack
 from dataclasses import dataclass, is_dataclass, asdict
 
-from inginious.common.agents import AgentType, GradingEnvironment
+from inginious.common.agents import AgentType, GradingEnvironment, Capabilities
 
 BackendJobId = str
 ClientJobId = str
@@ -66,6 +66,7 @@ class ClientGetQueue:
 class BackendUpdateEnvironments:
     """ Update the information about the environments on the client, from the informations retrieved from the agents """
     available_environments: Dict[str, List[str]]  # dict of available environment aliases (as keys) and type of the related agent (as value)
+    capabilities: dict[AgentType, Capabilities]
 
 
 @dataclass(frozen=True)
@@ -177,6 +178,8 @@ class BackendKillJob:
 @dataclass(frozen=True)
 class AgentHello:
     """ Let the agent say hello and announce which environments it has available """
+
+    """ Agent name. """
     friendly_name: str
     """ The number of concurrent jobs supported """
     available_job_slots: int
@@ -184,6 +187,8 @@ class AgentHello:
     environments: dict[str, GradingEnvironment]
     """ The Agent type """
     agent_type: AgentType
+    """ Agent capabilities """
+    capabilities: Capabilities
 
 
 @dataclass(frozen=True)

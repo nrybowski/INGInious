@@ -3,9 +3,12 @@ import gettext
 import os
 
 from inginious import get_root_path
+from inginious.common.agents import Capabilities
+
+_ = gettext.gettext
 
 @dataclass(frozen=True)
-class DockerAgentCapabilities:
+class DockerAgentCapabilities(Capabilities):
 
     def __post_init__(self):
         # Load the capabilities translations from disk.
@@ -17,11 +20,7 @@ class DockerAgentCapabilities:
         translations.update({
             lang: gettext.translation('messages', trad_path, [lang]) for lang in available
         })
-
-        # For each capability, load its translations.
-        for capability, attrs in self.__class__.__dataclass_fields__.items():
-            attrs.metadata = {'translations': translations}
-            object.__setattr__(self, capability, attrs)
+        object.__setattr__(self, '__translations__', translations)
     
     """ Indicates whether the Agent supports GPUs. """
     gpu: bool = field(doc=_("The task requires a GPU."))

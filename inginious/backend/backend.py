@@ -17,7 +17,7 @@ from inginious.common.asyncio_utils import create_safe_task
 from inginious.common.messages import BackendNewJob, AgentJobStarted, AgentJobDone, AgentJobSSHDebug, \
     BackendJobDone, BackendJobStarted, BackendJobSSHDebug, ClientNewJob, ClientKillJob, BackendKillJob, AgentHello, \
     ClientHello, BackendUpdateEnvironments, Unknown, Ping, Pong, ClientGetQueue, BackendGetQueue, ZMQUtils
-from inginious.common.agents import AgentType, GradingEnvironment
+from inginious.common.agents import AgentType, GradingEnvironment, Capabilities
 
 # This will be pushed inside a TopicPriorityQueue that uses natural ordering (smallest element has the highest priority)
 # priority and time_received must thus be the two first element of the tuples.
@@ -54,10 +54,11 @@ class Backend(object):
 
         # Available grading environments.
         # Keys are first the AgentType (oci, mcq) then the name of the environment.
-        self._environments: Dict[AgentType, Dict[str, EnvironmentInfo]] = {}
+        self._environments: dict[AgentType, dict[str, EnvironmentInfo]] = {}
+        self._agent_capabilities: dict[AgentType, Capabilities] = {}
         self._registered_clients = set()  # addr of registered clients
 
-        self._registered_agents: Dict[bytes, AgentInfo] = {}  # all registered agents
+        self._registered_agents: dict[bytes, AgentInfo] = {}  # all registered agents
         self._ping_count = {}  # ping count per addr of agents
 
         # addr of available agents. May contain multiple times the same agent, because some agent can
@@ -113,7 +114,7 @@ class Backend(object):
             env_type: [name for name, env in environments.items() if env.is_advertised]
             for env_type, environments in self._environments.items()
         }
-        msg = BackendUpdateEnvironments(available_environments)
+        msg = BackendUpdateEnvironments(available_environments, self._agent_capabilities)
         for client in client_addrs:
             await ZMQUtils.send_with_addr(self._client_socket, client, msg)
 
@@ -247,6 +248,12 @@ class Backend(object):
         if message.agent_type not in self._environments:
             self._environments[message.agent_type] = {}
         env_dict = self._environments[message.agent_type]
+
+        # Save Capabilities of Agent type.
+        if (c := self._agent_capabilities.get(message.agent_type)) is None:
+            self._agent_capabilities[message.agent_type] = message.capabilities
+        elif c != message.capabilities:
+            self._logger.warning(f"Received different capabilities for a same Agent type: known {c}, received {message.capabilities}... Ignoring.")
 
         # update information about available environments
         for environment, environment_info in message.environments.items():
