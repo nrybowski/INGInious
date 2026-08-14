@@ -40,13 +40,14 @@ class CourseEditTask(INGIniousAdminPage):
         except TaskNotFoundException:
             raise NotFound()
 
+        self.logger.info(self.client.agents_capabilities)
         environments = {
             agent_type: {
               'envs': envs,
-              'capabilities': self.client.agents_capabilities[agent_type],  
+              'capabilities': self.client.agents_capabilities.get(agent_type),
               'obj': get_env_from_type(agent_type) 
             } for agent_type, envs in
-            self.submission_manager.get_available_environments()
+            self.submission_manager.get_available_environments().items()
         }
 
         additional_tabs = plugin_manager.call_hook('task_editor_tab', course=course, taskid=taskid,

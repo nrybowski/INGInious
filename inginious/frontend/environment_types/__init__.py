@@ -11,9 +11,9 @@ __env_types = {}
 
 def get_env_from_type(t: AgentType):
     if t == AgentType.OCI:
-        return DockerEnvType
+        return DockerEnvType()
     elif t == AgentType.MCQ:
-        return MCQEnvType
+        return MCQEnvType()
     else:
         return None
 

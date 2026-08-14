@@ -11,6 +11,7 @@ _ = gettext.gettext
 class DockerAgentCapabilities(Capabilities):
 
     def __post_init__(self):
+        super().__post_init__()
         # Load the capabilities translations from disk.
         translations = {"en": gettext.NullTranslations()}
         trad_path = os.path.join(get_root_path(), 'agent/docker_agent/i18n')

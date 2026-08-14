@@ -1,18 +1,18 @@
-from dataclasses import dataclass
-from enum import StrEnum, auto
+from dataclasses import dataclass, field
+from enum import StrEnum
 from abc import ABC
 
 @dataclass(frozen=True)
 class Capabilities(ABC):
     """ Agent capabilities. """
+    doc: list = field(init=False)
 
-    @property
-    def _capabilities(self):
-        return {c: f.doc for c, f in self.__dataclass_fields__.items()}
+    def __post_init__(self):
+        object.__setattr__(self, 'doc', {c: f.doc for c, f in self.__dataclass_fields__.items() if c != 'doc'})
 
 class AgentType(StrEnum):
-    OCI = auto()
-    MCQ = auto()
+    OCI = 'oci'
+    MCQ = 'mcq'
 
 @dataclass(frozen=True)
 class GradingEnvironment:

@@ -233,7 +233,6 @@ class Backend(object):
         """
         Handle an AgentAvailable message. Add agent_addr to the list of available agents
         """
-        message = AgentHello(**message)
         self._logger.info("Agent %s (%s) said hello", agent_addr, message.friendly_name)
 
         if agent_addr in self._registered_agents:
@@ -250,9 +249,10 @@ class Backend(object):
         env_dict = self._environments[message.agent_type]
 
         # Save Capabilities of Agent type.
+        capabilities = c.get('doc') if (c := message.capabilities) is not None else c
         if (c := self._agent_capabilities.get(message.agent_type)) is None:
-            self._agent_capabilities[message.agent_type] = message.capabilities
-        elif c != message.capabilities:
+            self._agent_capabilities[message.agent_type] = capabilities
+        elif c != capabilities:
             self._logger.warning(f"Received different capabilities for a same Agent type: known {c}, received {message.capabilities}... Ignoring.")
 
         # update information about available environments
